@@ -103,6 +103,7 @@ int executor_run(Executor* self) {
       }
 
       dup2(fd, STDOUT_FILENO);
+      close(fd);
     }
     
     int status = execvp(self->tokens[0], &self->tokens[0]);
@@ -110,8 +111,6 @@ int executor_run(Executor* self) {
       printf("ERROR: Failed to execute command\n%s\n", strerror(errno));
       exit(-1);
     }
-
-    if (redirect_file_name[0] != 0) close(fd);
   } else {
     int ret_code;
     waitpid(id, &ret_code, 0);
