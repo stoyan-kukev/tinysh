@@ -1,4 +1,6 @@
 #include "parser.h"
+#include "executor.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -19,11 +21,9 @@ int main(void) {
     parser_init(&parser, input);
     parser_tokenize(&parser);
 
-    for (int i = 0; i < parser.token_count; i += 1) {
-      printf("[%s]", parser.tokens[i]);
-    }
-
-    printf("\n");
+    Executor executor;
+    executor_init(&executor, parser.tokens);
+    executor_run(&executor);
   }
   
   free(input);

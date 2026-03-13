@@ -10,6 +10,7 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 add_executable(tinysh
   src/main.c
   src/parser.c
+  src/executor.c
 )
 
 target_include_directories(tinysh PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
