@@ -11,6 +11,8 @@ add_executable(tinysh
   src/main.c
   src/parser.c
   src/executor.c
+  src/arena.c
+  src/tokenizer.c
 )
 
 target_include_directories(tinysh PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)

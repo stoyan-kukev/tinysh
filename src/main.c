@@ -1,5 +1,6 @@
 #include "parser.h"
-#include "executor.h"
+// #include "executor.h"
+#include "arena.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,7 +8,9 @@
 #include <string.h>
 #include <unistd.h>
 
-int main(int argc, char** _) {
+int main(int argc, char** argv) {
+  (void)argv;
+
   if (argc > 1) {
     printf("Usage: tinysh\n");
     exit(0);
@@ -19,6 +22,9 @@ int main(int argc, char** _) {
   char* input = NULL;
   size_t n = 0;
 
+  Arena arena;
+  arena_init(&arena, 0);
+
   while (true) {
     printf("tinysh:%s$ ", path);
     ssize_t read_chars = getline(&input, &n, stdin);
@@ -28,15 +34,18 @@ int main(int argc, char** _) {
     }
 
     Parser parser;
-    parser_init(&parser, input);
-    parser_tokenize(&parser);
+    parser_init(&parser, input, read_chars, &arena);
+    parser_build_ast(&parser);
 
-    Executor executor;
-    executor_init(&executor, parser.tokens, path);
-    executor_run(&executor);
+    // Executor executor;
+    // executor_init(&executor, parser.tokens, path);
+    // executor_run(&executor);
+
+    arena_reset(&arena);
   }
   
   free(input);
+  arena_deinit(&arena);
 
   return 0;
 }

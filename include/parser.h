@@ -1,18 +1,26 @@
 #ifndef TINYSH_PARSER_H
 #define TINYSH_PARSER_H
 
-#define MAX_TOKENS 64
+#include "tokenizer.h"
+
+#include "arena.h"
+
+#include <stddef.h>
 
 typedef struct Parser {
-  char* input_string;
-  char* tokens[MAX_TOKENS];
-  int token_count;
+  Tokenizer tokenizer;
+  Arena* arena;
+  Token* curr;
+  Token* peek;
 } Parser;
 
 // Initializes parser state
-void parser_init(Parser* parser, char* input);
+void parser_init(Parser* parser, char* source, size_t length, Arena* arena);
 
-// Performs tokenization. Returns 0 on success, -1 on error
-int parser_tokenize(Parser* self);
+// Parses raw input into an AST
+void parser_build_ast(Parser* self);
+
+// Advances the parser to the next token
+void parser_advance(Parser* self);
 
 #endif
