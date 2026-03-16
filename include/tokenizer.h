@@ -21,20 +21,22 @@ typedef struct Location {
 typedef enum TokenTag {
   TOK_WORD,
   TOK_STRING,
-
-  TOK_PIPE,
-  TOK_AND,
-  TOK_OR,
-  TOK_GREATER,
-  TOK_GREATER2,
-  TOK_LESS,
-  TOK_LESS2,
   TOK_SEMI,
   TOK_AMPERSAND,
-
+  TOK_GREATER,
+  TOK_GREATER2,
+  TOK_BANG_GREATER,
+  TOK_BANG_GREATER2,
+  TOK_AMPERSAND_GREATER,
+  TOK_AMPERSAND_GREATER2,
+  TOK_PIPE,
+  TOK_AMPERSAND_PIPE,
+  TOK_AND,
+  TOK_OR,
+  TOK_LESS,
+  TOK_LESS2,
   TOK_LPAREN,
   TOK_RPAREN,
-
   TOK_EOF,
 } TokenTag;
 
@@ -45,6 +47,7 @@ typedef struct Token {
 
 void tokenizer_init(Tokenizer* tokenizer, char* source, size_t length, Arena* arena);
 Token* tokenizer_next(Tokenizer* tokenizer);
+char tokenizer_peek(Tokenizer* tokenizer);
 void token_print(Tokenizer* tokenizer, Token* token);
 bool is_eof(Tokenizer* tokenizer);
 
