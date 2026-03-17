@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "ast.h"
 // #include "executor.h"
 #include "arena.h"
 
@@ -35,11 +36,13 @@ int main(int argc, char** argv) {
 
     Parser parser;
     parser_init(&parser, input, read_chars, &arena);
-    parser_build_ast(&parser);
 
-    // Executor executor;
-    // executor_init(&executor, parser.tokens, path);
-    // executor_run(&executor);
+    if (setjmp(parser.error_env) == 0) {
+      AstNode* ast = parser_parse(&parser);
+      // Executor executor;
+      // executor_init(&executor, parser.tokens, path);
+      // executor_run(&executor);
+    }
 
     arena_reset(&arena);
   }

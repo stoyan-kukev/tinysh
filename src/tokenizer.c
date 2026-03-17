@@ -45,7 +45,7 @@ Token *tokenizer_next(Tokenizer *tokenizer) {
     if (c == '&') {
       if (tokenizer_peek(tokenizer) == '|') {
         token->tag = TOK_AMPERSAND_PIPE;
-        tokenizer->index += 1;
+        tokenizer->index += 2;
       } else if (tokenizer_peek(tokenizer) == '>') {
         if (tokenizer->index + 2 < tokenizer->length &&
             tokenizer->source[tokenizer->index + 2] == '>') {

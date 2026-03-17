@@ -2,25 +2,24 @@
 #define TINYSH_PARSER_H
 
 #include "tokenizer.h"
-
+#include "ast.h"
 #include "arena.h"
 
 #include <stddef.h>
+#include <setjmp.h>
 
 typedef struct Parser {
-  Tokenizer tokenizer;
+  Tokenizer* tokenizer;
   Arena* arena;
   Token* curr;
-  Token* peek;
+  Token* prev;
+  jmp_buf error_env;
 } Parser;
 
 // Initializes parser state
 void parser_init(Parser* parser, char* source, size_t length, Arena* arena);
 
 // Parses raw input into an AST
-void parser_build_ast(Parser* self);
-
-// Advances the parser to the next token
-void parser_advance(Parser* self);
+AstNode* parser_parse(Parser* self);
 
 #endif
