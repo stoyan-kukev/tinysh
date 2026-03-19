@@ -85,6 +85,7 @@ void run_command(CommandPayload *cmd) {
     exit(0);
   }
 
+  signal(SIGINT, SIG_DFL);
   execvp(cmd->arguments[0], cmd->arguments);
 
   fprintf(stderr, "tinysh: command not found: %s\n", cmd->arguments[0]);
