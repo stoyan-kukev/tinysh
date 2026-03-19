@@ -136,7 +136,8 @@ int execute_pipeline(PipelinePayload *pipeline) {
         dup2(pipe_fds[1], STDERR_FILENO);
       close(pipe_fds[1]);
 
-      run_command(&pipeline->left->as.command);
+      int status = executor_run(pipeline->left);
+      exit(status);
     }
 
     right_pid = fork();
@@ -150,7 +151,8 @@ int execute_pipeline(PipelinePayload *pipeline) {
       dup2(pipe_fds[0], STDIN_FILENO);
       close(pipe_fds[0]);
 
-      run_command(&pipeline->right->as.command);
+      int status = executor_run(pipeline->right);
+      exit(status);
     }
 
     close(pipe_fds[0]);
@@ -188,6 +190,33 @@ int execute_logical(LogicalPayload *logical) {
   }
 }
 
+int execute_list(ListPayload *list) {
+  pid_t pid;
+  switch (list->operator->tag) {
+  case TOK_SEMI:
+    executor_run(list->left);
+    return executor_run(list->right);
+  case TOK_AMPERSAND:
+    pid = fork();
+    if (pid == -1) {
+      perror("fork failed");
+      return 1;
+    }
+
+    if (pid == 0) {
+      executor_run(list->left);
+      exit(0);
+    } else {
+      return executor_run(list->right);
+    }
+  default:
+    fprintf(stderr, "tinysh: unknown list operator\n");
+    return 1;
+  }
+
+  return 0;
+}
+
 int executor_run(AstNode *ast) {
   if (!ast)
     return 0;
@@ -200,7 +229,7 @@ int executor_run(AstNode *ast) {
   case NODE_LOGICAL:
     return execute_logical(&ast->as.logical);
   case NODE_LIST:
-    break;
+    return execute_list(&ast->as.list);
   }
 
   return 0;
