@@ -15,6 +15,15 @@ void tokenizer_init(Tokenizer *tokenizer, char *source, size_t length,
   tokenizer->arena = arena;
 }
 
+static Token *error_token(Tokenizer *tokenizer) {
+  Token* token = arena_alloc(tokenizer->arena, sizeof(Token));
+  token->tag = TOK_ERROR;
+  token->loc.start = tokenizer->index;
+  token->loc.end = tokenizer->index;
+
+  return token;
+}
+
 Token *tokenizer_next(Tokenizer *tokenizer) {
   Token *token = arena_alloc(tokenizer->arena, sizeof(Token));
 
@@ -84,7 +93,7 @@ Token *tokenizer_next(Tokenizer *tokenizer) {
         }
       } else {
         fprintf(stderr, "ERROR: Invalid usage of bang redirect.\n");
-        return NULL;
+        return error_token(tokenizer);
       }
 
       token->loc.end = tokenizer->index;
@@ -132,7 +141,7 @@ Token *tokenizer_next(Tokenizer *tokenizer) {
 
       if (is_eof(tokenizer)) {
         fprintf(stderr, "ERROR: Unterminated quotes in input\n");
-        return NULL;
+        return error_token(tokenizer);
       }
 
       // Skip ending quote
@@ -183,6 +192,7 @@ static const char *token_tag_names[] = {
     "TOK_LPAREN",
     "TOK_RPAREN",
     "TOK_EOF",
+    "TOK_ERROR",
 };
 
 void token_print(Tokenizer *tokenizer, Token *token) {

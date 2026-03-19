@@ -38,6 +38,7 @@ typedef enum TokenTag {
   TOK_LPAREN,
   TOK_RPAREN,
   TOK_EOF,
+  TOK_ERROR,
 } TokenTag;
 
 typedef struct Token {

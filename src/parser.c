@@ -50,6 +50,10 @@ void parser_init(Parser *self, char *source, size_t length, Arena *arena) {
 static void advance(Parser *self) {
   self->prev = self->curr;
   self->curr = tokenizer_next(self->tokenizer);
+
+  if (self->curr->tag == TOK_ERROR) {
+    longjmp(self->error_env, 1);
+  }
 }
 
 static bool check(Parser *self, TokenTag expected_tag) {
@@ -101,11 +105,21 @@ static AstNode *parse_command(Parser *self) {
   while (check(self, TOK_WORD) || check(self, TOK_STRING)) {
     Token *token = consume(self, self->curr->tag, "Expected argument");
 
-    const size_t length = token->loc.end - token->loc.start;
-    char *arg = arena_alloc(self->arena, length + 1);
+    const size_t raw_length = token->loc.end - token->loc.start;
+    char *arg;
 
-    memcpy(arg, self->tokenizer->source + token->loc.start, length);
-    arg[length] = '\0';
+    if (token->tag == TOK_STRING) {
+      const size_t stripped_length = raw_length - 2;
+      arg = arena_alloc(self->arena, stripped_length + 1);
+
+      memcpy(arg, self->tokenizer->source + token->loc.start + 1, stripped_length);
+      arg[stripped_length] = 0;
+    } else {
+      arg = arena_alloc(self->arena, raw_length + 1);
+      
+      memcpy(arg, self->tokenizer->source + token->loc.start, raw_length);
+      arg[raw_length] = '\0';
+    }
 
     args_array_push(&args, arg, self->arena);
   }
