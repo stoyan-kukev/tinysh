@@ -9,34 +9,34 @@ typedef struct AstNode AstNode;
 
 typedef struct RedirectionNode {
   TokenTag operation;
-  char* target;
-  struct RedirectionNode* next;
-} RedirectionNode; 
+  char *target;
+  struct RedirectionNode *next;
+} RedirectionNode;
 
 typedef struct {
-  char** arguments; 
-  RedirectionNode* redirections; 
+  char **arguments;
+  RedirectionNode *redirections;
 } CommandPayload;
 
 typedef struct {
-  AstNode* left;
+  AstNode *left;
   // | or &|
-  Token* operator;
-  AstNode* right;
+  Token *operator;
+  AstNode *right;
 } PipelinePayload;
 
 typedef struct {
-  AstNode* left;
+  AstNode *left;
   // && or ||
-  Token* operator;
-  AstNode* right;
+  Token *operator;
+  AstNode *right;
 } LogicalPayload;
 
 typedef struct {
-  AstNode* left;
+  AstNode *left;
   // ; or &
-  Token* operator; 
-  AstNode* right;
+  Token *operator;
+  AstNode *right;
 } ListPayload;
 
 typedef enum AstNodeType {
@@ -53,7 +53,7 @@ struct AstNode {
     PipelinePayload pipeline;
     LogicalPayload logical;
     ListPayload list;
-  } as; 
+  } as;
 };
 
 #endif

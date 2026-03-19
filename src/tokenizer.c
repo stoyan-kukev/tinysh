@@ -16,7 +16,7 @@ void tokenizer_init(Tokenizer *tokenizer, char *source, size_t length,
 }
 
 static Token *error_token(Tokenizer *tokenizer) {
-  Token* token = arena_alloc(tokenizer->arena, sizeof(Token));
+  Token *token = arena_alloc(tokenizer->arena, sizeof(Token));
   token->tag = TOK_ERROR;
   token->loc.start = tokenizer->index;
   token->loc.end = tokenizer->index;

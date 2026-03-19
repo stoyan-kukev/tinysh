@@ -1,15 +1,15 @@
 #include "arena.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 #define ARENA_ALIGNMENT 16
 #define ALIGN_UP(n, a) (((n) + (a) - 1) & ~((a) - 1))
 
-static ArenaRegion* arena_region_create(size_t capacity) {
+static ArenaRegion *arena_region_create(size_t capacity) {
   size_t total_size = sizeof(ArenaRegion) + capacity;
-  ArenaRegion* region = malloc(total_size);
+  ArenaRegion *region = malloc(total_size);
   if (!region) {
     fprintf(stderr, "FATAL: Arena failed to allocate a memory region.\n");
     exit(EXIT_FAILURE);
@@ -22,7 +22,7 @@ static ArenaRegion* arena_region_create(size_t capacity) {
   return region;
 }
 
-void arena_init(Arena* arena, size_t default_size) {
+void arena_init(Arena *arena, size_t default_size) {
   if (default_size == 0) {
     default_size = ARENA_DEFAULT_REGION_SIZE;
   }
@@ -32,9 +32,9 @@ void arena_init(Arena* arena, size_t default_size) {
   arena->current = arena->head;
 }
 
-void* arena_alloc(Arena* arena, size_t size) {
+void *arena_alloc(Arena *arena, size_t size) {
   size_t aligned_size = ALIGN_UP(size, ARENA_ALIGNMENT);
-  ArenaRegion* region = arena->current;
+  ArenaRegion *region = arena->current;
 
   if (region->offset + aligned_size > region->capacity) {
     if (region->next != NULL) {
@@ -46,22 +46,22 @@ void* arena_alloc(Arena* arena, size_t size) {
         new_capacity = aligned_size;
       }
 
-      ArenaRegion* new_region = arena_region_create(new_capacity);
+      ArenaRegion *new_region = arena_region_create(new_capacity);
       region->next = new_region;
       arena->current = new_region;
       region = new_region;
     }
   }
 
-  void* ptr = (uint8_t*)region->data + region->offset;
+  void *ptr = (uint8_t *)region->data + region->offset;
   region->offset += aligned_size;
 
   return ptr;
 }
 
-void* arena_calloc(Arena* arena, size_t count, size_t size) {
+void *arena_calloc(Arena *arena, size_t count, size_t size) {
   size_t total_size = count * size;
-  void* ptr = arena_alloc(arena, total_size);
+  void *ptr = arena_alloc(arena, total_size);
   if (ptr) {
     memset(ptr, 0, total_size);
   }
@@ -69,20 +69,20 @@ void* arena_calloc(Arena* arena, size_t count, size_t size) {
   return ptr;
 }
 
-void arena_reset(Arena* arena) {
-  ArenaRegion* region = arena->head;
+void arena_reset(Arena *arena) {
+  ArenaRegion *region = arena->head;
   while (region != NULL) {
     region->offset = 0;
-    region = region->next;    
+    region = region->next;
   }
 
   arena->current = arena->head;
 }
 
-void arena_deinit(Arena* arena) {
-  ArenaRegion* region = arena->head;
+void arena_deinit(Arena *arena) {
+  ArenaRegion *region = arena->head;
   while (region != NULL) {
-    ArenaRegion* next = region->next;
+    ArenaRegion *next = region->next;
     free(region);
     region = next;
   }

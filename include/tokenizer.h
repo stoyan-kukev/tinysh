@@ -3,14 +3,14 @@
 
 #include "arena.h"
 
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 typedef struct Tokenizer {
-  char* source;
+  char *source;
   size_t index;
   size_t length;
-  Arena* arena;
+  Arena *arena;
 } Tokenizer;
 
 typedef struct Location {
@@ -43,13 +43,14 @@ typedef enum TokenTag {
 
 typedef struct Token {
   TokenTag tag;
-  Location loc;  
+  Location loc;
 } Token;
 
-void tokenizer_init(Tokenizer* tokenizer, char* source, size_t length, Arena* arena);
-Token* tokenizer_next(Tokenizer* tokenizer);
-char tokenizer_peek(Tokenizer* tokenizer);
-void token_print(Tokenizer* tokenizer, Token* token);
-bool is_eof(Tokenizer* tokenizer);
+void tokenizer_init(Tokenizer *tokenizer, char *source, size_t length,
+                    Arena *arena);
+Token *tokenizer_next(Tokenizer *tokenizer);
+char tokenizer_peek(Tokenizer *tokenizer);
+void token_print(Tokenizer *tokenizer, Token *token);
+bool is_eof(Tokenizer *tokenizer);
 
 #endif

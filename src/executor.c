@@ -10,7 +10,18 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-void executor_init(Executor *self, char *path) { self->path = path; }
+static int execute_ast(Executor *self, AstNode *ast);
+
+void executor_init(Executor *self, Arena *arena, int last_status) {
+  self->last_status = last_status;
+  self->arena = arena;
+}
+
+int executor_run(Executor *self, AstNode *ast, int last_status) {
+  self->last_status = last_status;
+
+  return execute_ast(self, ast);
+}
 
 static int get_flags(bool condition) {
   if (condition) {
@@ -78,11 +89,19 @@ static void apply_redirections(RedirectionNode *head) {
   }
 }
 
-void run_command(CommandPayload *cmd) {
+static void run_command(Executor *self, CommandPayload *cmd) {
   apply_redirections(cmd->redirections);
 
   if (cmd->arguments[0] == NULL) {
     exit(0);
+  }
+
+  for (size_t i = 0; cmd->arguments[i] != NULL; i += 1) {
+    if (strcmp(cmd->arguments[i], "$?") == 0) {
+      char *buffer = arena_calloc(self->arena, 128, sizeof(char));
+      snprintf(buffer, 128, "%d", self->last_status);
+      cmd->arguments[i] = buffer;
+    }
   }
 
   signal(SIGINT, SIG_DFL);
@@ -92,10 +111,10 @@ void run_command(CommandPayload *cmd) {
   exit(127);
 }
 
-int execute_command(CommandPayload *cmd) {
+int execute_command(Executor *self, CommandPayload *cmd) {
   if (strcmp(cmd->arguments[0], "cd") == 0) {
-    const char* dir = cmd->arguments[1];
-    const char* home_path = getenv("HOME");
+    const char *dir = cmd->arguments[1];
+    const char *home_path = getenv("HOME");
 
     if (cmd->arguments[1] == NULL) {
       if (home_path == NULL) {
@@ -106,7 +125,7 @@ int execute_command(CommandPayload *cmd) {
       dir = home_path;
     }
 
-    int status = chdir(dir); 
+    int status = chdir(dir);
     if (status == -1) {
       perror("Changing directories failed.");
       return 1;
@@ -127,7 +146,7 @@ int execute_command(CommandPayload *cmd) {
   }
 
   if (pid == 0) {
-    run_command(cmd);
+    run_command(self, cmd);
   }
 
   int status;
@@ -140,7 +159,7 @@ int execute_command(CommandPayload *cmd) {
   return 1;
 }
 
-int execute_pipeline(PipelinePayload *pipeline) {
+static int execute_pipeline(Executor *self, PipelinePayload *pipeline) {
   int pipe_fds[2];
   if (pipe(pipe_fds) != 0) {
     fprintf(stderr, "tinysh: failed to create pipe\n");
@@ -164,7 +183,7 @@ int execute_pipeline(PipelinePayload *pipeline) {
         dup2(pipe_fds[1], STDERR_FILENO);
       close(pipe_fds[1]);
 
-      int status = executor_run(pipeline->left);
+      int status = execute_ast(self, pipeline->left);
       exit(status);
     }
 
@@ -179,7 +198,7 @@ int execute_pipeline(PipelinePayload *pipeline) {
       dup2(pipe_fds[0], STDIN_FILENO);
       close(pipe_fds[0]);
 
-      int status = executor_run(pipeline->right);
+      int status = execute_ast(self, pipeline->right);
       exit(status);
     }
 
@@ -197,18 +216,18 @@ int execute_pipeline(PipelinePayload *pipeline) {
   }
 }
 
-int execute_logical(LogicalPayload *logical) {
-  int status = executor_run(logical->left);
+int execute_logical(Executor *self, LogicalPayload *logical) {
+  int status = execute_ast(self, logical->left);
 
   switch (logical->operator->tag) {
   case TOK_AND:
     if (status == 0) {
-      return executor_run(logical->right);
+      return execute_ast(self, logical->right);
     }
     return status;
   case TOK_OR:
     if (status != 0) {
-      return executor_run(logical->right);
+      return execute_ast(self, logical->right);
     }
     return 0;
   default:
@@ -217,12 +236,12 @@ int execute_logical(LogicalPayload *logical) {
   }
 }
 
-int execute_list(ListPayload *list) {
+static int execute_list(Executor *self, ListPayload *list) {
   pid_t pid;
   switch (list->operator->tag) {
   case TOK_SEMI:
-    executor_run(list->left);
-    return executor_run(list->right);
+    execute_ast(self, list->left);
+    return execute_ast(self, list->right);
   case TOK_AMPERSAND:
     pid = fork();
     if (pid == -1) {
@@ -231,10 +250,10 @@ int execute_list(ListPayload *list) {
     }
 
     if (pid == 0) {
-      executor_run(list->left);
+      execute_ast(self, list->left);
       exit(0);
     } else {
-      return executor_run(list->right);
+      return execute_ast(self, list->right);
     }
   default:
     fprintf(stderr, "tinysh: unknown list operator\n");
@@ -244,19 +263,19 @@ int execute_list(ListPayload *list) {
   return 0;
 }
 
-int executor_run(AstNode *ast) {
+static int execute_ast(Executor *self, AstNode *ast) {
   if (!ast)
     return 0;
 
   switch (ast->type) {
   case NODE_COMMAND:
-    return execute_command(&ast->as.command);
+    return execute_command(self, &ast->as.command);
   case NODE_PIPELINE:
-    return execute_pipeline(&ast->as.pipeline);
+    return execute_pipeline(self, &ast->as.pipeline);
   case NODE_LOGICAL:
-    return execute_logical(&ast->as.logical);
+    return execute_logical(self, &ast->as.logical);
   case NODE_LIST:
-    return execute_list(&ast->as.list);
+    return execute_list(self, &ast->as.list);
   }
 
   return 0;

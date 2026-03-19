@@ -13,9 +13,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-void handler(int sig) {
-  (void)sig;
-}
+void handler(int sig) { (void)sig; }
 
 int main(int argc, char **argv) {
   (void)argv;
@@ -35,15 +33,17 @@ int main(int argc, char **argv) {
 
   char *input = NULL;
   size_t n = 0;
+  int last_status = 0;
 
   Arena arena;
   arena_init(&arena, 0);
 
   while (true) {
-    while (waitpid(-1, NULL, WNOHANG) > 0);
-    
+    while (waitpid(-1, NULL, WNOHANG) > 0)
+      ;
+
     getcwd(path, 255);
-    printf("tinysh:%s$ ", path);
+    printf("\033[1;32mtinysh:\033[1;34m%s\033[0m$ ", path);
 
     ssize_t read_chars = getline(&input, &n, stdin);
     if (read_chars == -1) {
@@ -68,8 +68,8 @@ int main(int argc, char **argv) {
     if (setjmp(parser.error_env) == 0) {
       AstNode *ast = parser_parse(&parser);
       Executor executor;
-      executor_init(&executor, path);
-      executor_run(ast);
+      executor_init(&executor, last_status, &arena);
+      last_status = executor_run(&executor, ast, last_status);
     }
 
     arena_reset(&arena);

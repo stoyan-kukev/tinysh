@@ -112,11 +112,12 @@ static AstNode *parse_command(Parser *self) {
       const size_t stripped_length = raw_length - 2;
       arg = arena_alloc(self->arena, stripped_length + 1);
 
-      memcpy(arg, self->tokenizer->source + token->loc.start + 1, stripped_length);
+      memcpy(arg, self->tokenizer->source + token->loc.start + 1,
+             stripped_length);
       arg[stripped_length] = 0;
     } else {
       arg = arena_alloc(self->arena, raw_length + 1);
-      
+
       memcpy(arg, self->tokenizer->source + token->loc.start, raw_length);
       arg[raw_length] = '\0';
     }
