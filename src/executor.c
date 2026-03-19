@@ -111,7 +111,7 @@ static void run_command(Executor *self, CommandPayload *cmd) {
   exit(127);
 }
 
-int execute_command(Executor *self, CommandPayload *cmd) {
+static int execute_command(Executor *self, CommandPayload *cmd) {
   if (strcmp(cmd->arguments[0], "cd") == 0) {
     const char *dir = cmd->arguments[1];
     const char *home_path = getenv("HOME");
@@ -154,6 +154,8 @@ int execute_command(Executor *self, CommandPayload *cmd) {
 
   if (WIFEXITED(status)) {
     return WEXITSTATUS(status);
+  } else if (WIFSIGNALED(status)) {
+    return 128 + WTERMSIG(status);
   }
 
   return 1;
@@ -209,14 +211,20 @@ static int execute_pipeline(Executor *self, PipelinePayload *pipeline) {
     waitpid(left_pid, &status1, 0);
     waitpid(right_pid, &status2, 0);
 
-    return WIFEXITED(status2) ? WEXITSTATUS(status2) : 1;
+    if (WIFEXITED(status2)) {
+      return WEXITSTATUS(status2);
+    } else if (WIFSIGNALED(status2)) {
+      return 128 + WTERMSIG(status2);
+    }
+
+    return 1;
   default:
     fprintf(stderr, "tinysh: unknown operator called with pipe\n");
     return 1;
   }
 }
 
-int execute_logical(Executor *self, LogicalPayload *logical) {
+static int execute_logical(Executor *self, LogicalPayload *logical) {
   int status = execute_ast(self, logical->left);
 
   switch (logical->operator->tag) {

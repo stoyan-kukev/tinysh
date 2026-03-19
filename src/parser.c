@@ -229,8 +229,12 @@ static AstNode *parse_list(Parser *self) {
 
   while (match(self, TOK_SEMI) || match(self, TOK_AMPERSAND)) {
     Token *operator = self->prev;
+    AstNode *right = NULL;
 
-    AstNode *right = parse_logical(self);
+    if (self->curr->tag != TOK_EOF && !check(self, TOK_SEMI) &&
+        !check(self, TOK_AMPERSAND)) {
+      right = parse_logical(self);
+    }
 
     AstNode *new_node = arena_alloc(self->arena, sizeof(AstNode));
     new_node->type = NODE_LIST;
@@ -245,4 +249,8 @@ static AstNode *parse_list(Parser *self) {
   return left;
 }
 
-AstNode *parser_parse(Parser *self) { return parse_list(self); }
+AstNode *parser_parse(Parser *self) {
+  if (self->curr->tag == TOK_EOF)
+    return NULL;
+  return parse_list(self);
+}

@@ -154,9 +154,13 @@ Token *tokenizer_next(Tokenizer *tokenizer) {
     token->tag = TOK_WORD;
     while (!is_eof(tokenizer)) {
       char curr = tokenizer->source[tokenizer->index];
-      if (curr == '|' || curr == '>' || curr == ' ' || curr == '!' ||
-          curr == '"' || curr == ';' || curr == '&' || curr == '\n' ||
-          curr == '\t') {
+
+      if (curr == '!' && tokenizer_peek(tokenizer) == '>') {
+        break;
+      }
+
+      if (curr == '|' || curr == '>' || curr == ' ' || curr == '"' ||
+          curr == ';' || curr == '&' || curr == '\n' || curr == '\t') {
         break;
       }
       tokenizer->index += 1;
