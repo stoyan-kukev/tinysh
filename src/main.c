@@ -18,7 +18,6 @@ int main(int argc, char **argv) {
   }
 
   char path[255] = {0};
-  getcwd(path, 255);
 
   char *input = NULL;
   size_t n = 0;
@@ -27,6 +26,7 @@ int main(int argc, char **argv) {
   arena_init(&arena, 0);
 
   while (true) {
+    getcwd(path, 255);
     printf("tinysh:%s$ ", path);
     ssize_t read_chars = getline(&input, &n, stdin);
     if (read_chars == -1) {

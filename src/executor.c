@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -91,6 +92,32 @@ void run_command(CommandPayload *cmd) {
 }
 
 int execute_command(CommandPayload *cmd) {
+  if (strcmp(cmd->arguments[0], "cd") == 0) {
+    const char* dir = cmd->arguments[1];
+    const char* home_path = getenv("HOME");
+
+    if (cmd->arguments[1] == NULL) {
+      if (home_path == NULL) {
+        fprintf(stderr, "tinysh: HOME variable not set\n");
+        return 1;
+      }
+
+      dir = home_path;
+    }
+
+    int status = chdir(dir); 
+    if (status == -1) {
+      perror("Changing directories failed.");
+      return 1;
+    }
+
+    return 0;
+  }
+
+  if (strcmp(cmd->arguments[0], "exit") == 0) {
+    exit(0);
+  }
+
   pid_t pid = fork();
 
   if (pid < 0) {
@@ -161,13 +188,12 @@ int execute_pipeline(PipelinePayload *pipeline) {
     int status1, status2;
     waitpid(left_pid, &status1, 0);
     waitpid(right_pid, &status2, 0);
-    break;
+
+    return WIFEXITED(status2) ? WEXITSTATUS(status2) : 1;
   default:
     fprintf(stderr, "tinysh: unknown operator called with pipe\n");
     return 1;
   }
-
-  return 0;
 }
 
 int execute_logical(LogicalPayload *logical) {
