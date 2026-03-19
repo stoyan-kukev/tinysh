@@ -1,121 +1,207 @@
 #include "executor.h"
+#include "ast.h"
+#include "tokenizer.h"
 
-#include <errno.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/wait.h>
-#include <string.h>
-#include <stdbool.h>
 #include <fcntl.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
-void executor_init(Executor* self, char** tokens, char* path) {
-  self->tokens = tokens;
-  self->path = path;
+void executor_init(Executor *self, char *path) { self->path = path; }
+
+static int get_flags(bool condition) {
+  if (condition) {
+    return O_WRONLY | O_CREAT | O_TRUNC;
+  } else {
+    return O_WRONLY | O_CREAT | O_APPEND;
+  }
 }
 
-int executor_run(Executor* self) {
-  if (self->tokens[0] == NULL) return 0;
-  
-  if (strcmp(self->tokens[0], "cd") == 0) {
-    if (self->tokens[2] != NULL) {
-      printf("cd: Too many arguments\n");
-      return 0;
-    }
+static void apply_redirections(RedirectionNode *head) {
+  RedirectionNode *curr = head;
 
-    if (self->tokens[1] == NULL) {
-      const char* home_dir = getenv("HOME");
-      if (home_dir == NULL) return 0;
+  while (curr != NULL) {
+    int fd;
 
-      int status = chdir(home_dir);
-      if (status != 0) {
-        printf("cd: Failed to change current working directory\n%s\n", strerror(errno));
-        return 0;
+    switch (curr->operation) {
+    case TOK_LESS:
+      fd = open(curr->target, O_RDONLY);
+      if (fd < 0) {
+        perror("open");
+        exit(1);
       }
-
-      strncpy(self->path, home_dir, 255);
-
-      return 0;
+      dup2(fd, STDIN_FILENO);
+      close(fd);
+      break;
+    case TOK_GREATER:
+    case TOK_GREATER2:
+      fd = open(curr->target, get_flags(curr->operation == TOK_GREATER), 0664);
+      if (fd < 0) {
+        perror("open");
+        exit(1);
+      }
+      dup2(fd, STDOUT_FILENO);
+      close(fd);
+      break;
+    case TOK_BANG_GREATER:
+    case TOK_BANG_GREATER2:
+      fd = open(curr->target, get_flags(curr->operation == TOK_BANG_GREATER),
+                0664);
+      if (fd < 0) {
+        perror("open");
+        exit(1);
+      }
+      dup2(fd, STDERR_FILENO);
+      close(fd);
+      break;
+    case TOK_AMPERSAND_GREATER:
+    case TOK_AMPERSAND_GREATER2:
+      fd = open(curr->target,
+                get_flags(curr->operation == TOK_AMPERSAND_GREATER), 0644);
+      if (fd < 0) {
+        perror("open");
+        exit(1);
+      }
+      dup2(fd, STDOUT_FILENO);
+      dup2(fd, STDERR_FILENO);
+      close(fd);
+      break;
+    default:
+      fprintf(stderr, "Executor: Unhandled redirection type\n");
+      exit(1);
     }
 
-    int status = chdir(self->tokens[1]);
-    if (status != 0) {
-      printf("cd: Failed to change current working directory\n%s\n", strerror(errno));
-      return 0;
-    }
-
-    char new_path[255];
-    getcwd(new_path, 255);
-    strncpy(self->path, new_path, 255);
-
-    return 0;
+    curr = curr->next;
   }
+}
 
-  if (strcmp(self->tokens[0], "exit") == 0) {
-    if (self->tokens[1] != NULL) {
-      printf("exit: Too many arguments\n");
-      return 0;
-    }
+void run_command(CommandPayload *cmd) {
+  apply_redirections(cmd->redirections);
 
+  if (cmd->arguments[0] == NULL) {
     exit(0);
   }
 
-  char redirect_file_name[255] = {0};
-  bool is_overwriting = false;
+  execvp(cmd->arguments[0], cmd->arguments);
 
-  int i = 0;
-  while (self->tokens[i] != NULL) {
-    const bool has_overwrite = strcmp(self->tokens[i], ">") == 0;
-    const bool has_append = strcmp(self->tokens[i], ">>") == 0;
-    if (has_overwrite || has_append) {
-      if (self->tokens[i+1] == NULL) {
-        printf("ERROR: Bad piping. Missing file to pipe to.\n");
-        return 0;
-      }
+  fprintf(stderr, "tinysh: command not found: %s\n", cmd->arguments[0]);
+  exit(127);
+}
 
-      strncpy(redirect_file_name, self->tokens[i + 1], 255);
+int execute_command(CommandPayload *cmd) {
+  pid_t pid = fork();
 
-      if (has_overwrite) is_overwriting = true;
-
-      self->tokens[i] = NULL;
-    }
-
-    i += 1;
-  }
-  
-  const pid_t id = fork();
-  if (id == -1) {
-    printf("ERROR: Failed to create new process\n");
-    exit(-1);
+  if (pid < 0) {
+    perror("fork failed");
+    return 1;
   }
 
-  if (id == 0) {
-    int fd;
-    if (redirect_file_name[0] != 0) {
-      if (is_overwriting) {
-        fd = open(redirect_file_name, O_WRONLY | O_CREAT | O_TRUNC, 0664);
-      } else {
-        fd = open(redirect_file_name, O_WRONLY | O_CREAT | O_APPEND, 0664);
-      }
+  if (pid == 0) {
+    run_command(cmd);
+  }
 
-      if (fd == -1) {
-        printf("ERROR: Failed to open file %s\n%s\n", redirect_file_name, strerror(errno));
-        exit(-1);
-      }
+  int status;
+  waitpid(pid, &status, 0);
 
-      dup2(fd, STDOUT_FILENO);
-      close(fd);
+  if (WIFEXITED(status)) {
+    return WEXITSTATUS(status);
+  }
+
+  return 1;
+}
+
+int execute_pipeline(PipelinePayload *pipeline) {
+  int pipe_fds[2];
+  if (pipe(pipe_fds) != 0) {
+    fprintf(stderr, "tinysh: failed to create pipe\n");
+    return 1;
+  }
+
+  pid_t left_pid, right_pid;
+  switch (pipeline->operator->tag) {
+  case TOK_PIPE:
+  case TOK_AMPERSAND_PIPE:
+    left_pid = fork();
+    if (left_pid < 0) {
+      perror("fork failed");
+      return 1;
     }
-    
-    int status = execvp(self->tokens[0], &self->tokens[0]);
+
+    if (left_pid == 0) {
+      close(pipe_fds[0]);
+      dup2(pipe_fds[1], STDOUT_FILENO);
+      if (pipeline->operator->tag != TOK_PIPE)
+        dup2(pipe_fds[1], STDERR_FILENO);
+      close(pipe_fds[1]);
+
+      run_command(&pipeline->left->as.command);
+    }
+
+    right_pid = fork();
+    if (right_pid < 0) {
+      perror("fork failed");
+      return 1;
+    }
+
+    if (right_pid == 0) {
+      close(pipe_fds[1]);
+      dup2(pipe_fds[0], STDIN_FILENO);
+      close(pipe_fds[0]);
+
+      run_command(&pipeline->right->as.command);
+    }
+
+    close(pipe_fds[0]);
+    close(pipe_fds[1]);
+
+    int status1, status2;
+    waitpid(left_pid, &status1, 0);
+    waitpid(right_pid, &status2, 0);
+    break;
+  default:
+    fprintf(stderr, "tinysh: unknown operator called with pipe\n");
+    return 1;
+  }
+
+  return 0;
+}
+
+int execute_logical(LogicalPayload *logical) {
+  int status = executor_run(logical->left);
+
+  switch (logical->operator->tag) {
+  case TOK_AND:
+    if (status == 0) {
+      return executor_run(logical->right);
+    }
+    return status;
+  case TOK_OR:
     if (status != 0) {
-      printf("ERROR: Failed to execute command\n%s\n", strerror(errno));
-      exit(-1);
+      return executor_run(logical->right);
     }
-  } else {
-    int ret_code;
-    waitpid(id, &ret_code, 0);
+    return 0;
+  default:
+    fprintf(stderr, "tinysh: unknown logical operator\n");
+    return 1;
   }
-  
+}
+
+int executor_run(AstNode *ast) {
+  if (!ast)
+    return 0;
+
+  switch (ast->type) {
+  case NODE_COMMAND:
+    return execute_command(&ast->as.command);
+  case NODE_PIPELINE:
+    return execute_pipeline(&ast->as.pipeline);
+  case NODE_LOGICAL:
+    return execute_logical(&ast->as.logical);
+  case NODE_LIST:
+    break;
+  }
+
   return 0;
 }

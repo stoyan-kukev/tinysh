@@ -8,8 +8,8 @@
 typedef struct AstNode AstNode;
 
 typedef struct RedirectionNode {
-  Token* operation;
-  Token* target;
+  TokenTag operation;
+  char* target;
   struct RedirectionNode* next;
 } RedirectionNode; 
 

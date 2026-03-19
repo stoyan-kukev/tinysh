@@ -119,17 +119,26 @@ static AstNode *parse_command(Parser *self) {
     RedirectionNode *node = arena_alloc(self->arena, sizeof(RedirectionNode));
 
     node->operation =
-        consume(self, self->curr->tag, "Expected redirection operator");
+        consume(self, self->curr->tag, "Expected redirection operator")->tag;
 
+    Token *target_token;
     if (check(self, TOK_WORD)) {
-      node->target = consume(self, TOK_WORD, "Expected file target");
+      target_token = consume(self, TOK_WORD, "Expected file target");
     } else if (check(self, TOK_STRING)) {
-      node->target = consume(self, TOK_STRING, "Expected file target");
+      target_token = consume(self, TOK_STRING, "Expected file target");
     } else {
       fprintf(stderr,
               "Syntax Error: Redirection must be followed by a file name.\n");
       longjmp(self->error_env, 1);
     }
+
+    const size_t length = target_token->loc.end - target_token->loc.start;
+    char *target_str = arena_alloc(self->arena, length + 1);
+    memcpy(target_str, self->tokenizer->source + target_token->loc.start,
+           length);
+    target_str[length] = '\0';
+
+    node->target = target_str;
 
     node->next = NULL;
 

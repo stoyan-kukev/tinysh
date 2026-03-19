@@ -36,8 +36,13 @@ Token *tokenizer_next(Tokenizer *tokenizer) {
     }
 
     if (c == '|') {
-      token->tag = TOK_PIPE;
-      tokenizer->index += 1;
+      if (tokenizer_peek(tokenizer) == '|') {
+        token->tag = TOK_OR;
+        tokenizer->index += 2;
+      } else {
+        token->tag = TOK_PIPE;
+        tokenizer->index += 1;
+      }
       token->loc.end = tokenizer->index;
       return token;
     }
@@ -69,8 +74,8 @@ Token *tokenizer_next(Tokenizer *tokenizer) {
 
     if (c == '!') {
       if (tokenizer_peek(tokenizer) == '>') {
-        if (tokenizer->index + 2 < tokenizer->length
-              && tokenizer->source[tokenizer->index + 2] == '>') {
+        if (tokenizer->index + 2 < tokenizer->length &&
+            tokenizer->source[tokenizer->index + 2] == '>') {
           token->tag = TOK_BANG_GREATER2;
           tokenizer->index += 3;
         } else {
