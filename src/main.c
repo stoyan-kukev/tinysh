@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
     if (setjmp(parser.error_env) == 0) {
       AstNode *ast = parser_parse(&parser);
       Executor executor;
-      executor_init(&executor, last_status, &arena);
+      executor_init(&executor, &arena, last_status);
       last_status = executor_run(&executor, ast, last_status);
     }
 
